@@ -297,7 +297,7 @@ func TestPatchService(t *testing.T) {
 	svcToPatch.Finalizers = []string{"foo"}
 	svcToPatch.Spec.ClusterIP = "10.0.0.2"
 	svcToPatch.Status = v1.ServiceStatus{
-		LoadBalancer: v1.LoadBalancerStatus{
+		LoadBalancer: &v1.LoadBalancerStatus{
 			Ingress: []v1.LoadBalancerIngress{
 				{IP: "8.8.8.8"},
 			},

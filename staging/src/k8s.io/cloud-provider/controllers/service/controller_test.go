@@ -148,7 +148,7 @@ func TestSyncLoadBalancerIfNeeded(t *testing.T) {
 					Type: v1.ServiceTypeClusterIP,
 				},
 				Status: v1.ServiceStatus{
-					LoadBalancer: v1.LoadBalancerStatus{
+					LoadBalancer: &v1.LoadBalancerStatus{
 						Ingress: []v1.LoadBalancerIngress{
 							{IP: "8.8.8.8"},
 						},
@@ -236,7 +236,7 @@ func TestSyncLoadBalancerIfNeeded(t *testing.T) {
 					Type: v1.ServiceTypeClusterIP,
 				},
 				Status: v1.ServiceStatus{
-					LoadBalancer: v1.LoadBalancerStatus{
+					LoadBalancer: &v1.LoadBalancerStatus{
 						Ingress: []v1.LoadBalancerIngress{
 							{IP: "8.8.8.8"},
 						},
@@ -269,7 +269,7 @@ func TestSyncLoadBalancerIfNeeded(t *testing.T) {
 					Type: v1.ServiceTypeLoadBalancer,
 				},
 				Status: v1.ServiceStatus{
-					LoadBalancer: v1.LoadBalancerStatus{
+					LoadBalancer: &v1.LoadBalancerStatus{
 						Ingress: []v1.LoadBalancerIngress{
 							{IP: "8.8.8.8"},
 						},
@@ -1284,7 +1284,7 @@ func TestPatchStatus(t *testing.T) {
 					Name: "test-patch-status",
 				},
 				Status: v1.ServiceStatus{
-					LoadBalancer: v1.LoadBalancerStatus{
+					LoadBalancer: &v1.LoadBalancerStatus{
 						Ingress: []v1.LoadBalancerIngress{
 							{IP: "8.8.8.8"},
 						},
@@ -1331,7 +1331,7 @@ func TestPatchStatus(t *testing.T) {
 					Name: "test-patch-status",
 				},
 				Status: v1.ServiceStatus{
-					LoadBalancer: v1.LoadBalancerStatus{
+					LoadBalancer: &v1.LoadBalancerStatus{
 						Ingress: []v1.LoadBalancerIngress{
 							{IP: "8.8.8.8"},
 						},
@@ -1352,7 +1352,7 @@ func TestPatchStatus(t *testing.T) {
 			if _, err := s.kubeClient.CoreV1().Services(tc.svc.Namespace).Create(context.TODO(), tc.svc, metav1.CreateOptions{}); err != nil {
 				t.Fatalf("Failed to prepare service for testing: %v", err)
 			}
-			if err := s.patchStatus(tc.svc, &tc.svc.Status.LoadBalancer, tc.newStatus); err != nil {
+			if err := s.patchStatus(tc.svc, tc.svc.Status.LoadBalancer, tc.newStatus); err != nil {
 				t.Fatalf("patchStatus() = %v, want nil", err)
 			}
 			patchActionFound := false
