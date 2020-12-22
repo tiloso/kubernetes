@@ -193,7 +193,7 @@ func dropServiceDisabledFields(newSvc *api.Service, oldSvc *api.Service) {
 		if !serviceConditionsInUse(oldSvc) {
 			newSvc.Status.Conditions = nil
 		}
-		if !loadBalancerPortsInUse(oldSvc) {
+		if !loadBalancerPortsInUse(oldSvc) && newSvc.Status.LoadBalancer != nil {
 			for i := range newSvc.Status.LoadBalancer.Ingress {
 				newSvc.Status.LoadBalancer.Ingress[i].Ports = nil
 			}
@@ -240,7 +240,7 @@ func serviceConditionsInUse(svc *api.Service) bool {
 
 // returns true when the svc.Status.LoadBalancer.Ingress.Ports field is in use.
 func loadBalancerPortsInUse(svc *api.Service) bool {
-	if svc == nil {
+	if svc == nil || svc.Status.LoadBalancer == nil {
 		return false
 	}
 	for _, ing := range svc.Status.LoadBalancer.Ingress {

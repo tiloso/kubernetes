@@ -279,8 +279,10 @@ func getListenIPPortMap(service *v1.Service, listenPort int, nodePort int) map[s
 		listenIPPortMap[ip] = listenPort
 	}
 
-	for _, ingress := range service.Status.LoadBalancer.Ingress {
-		listenIPPortMap[ingress.IP] = listenPort
+	if service.Status.LoadBalancer != nil {
+		for _, ingress := range service.Status.LoadBalancer.Ingress {
+			listenIPPortMap[ingress.IP] = listenPort
+		}
 	}
 
 	if nodePort != 0 {

@@ -1764,9 +1764,11 @@ func TestLoadBalancer(t *testing.T) {
 				Protocol: v1.ProtocolTCP,
 				NodePort: int32(svcNodePort),
 			}}
-			svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{
-				IP: svcLBIP,
-			}}
+			svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{{
+					IP: svcLBIP,
+				}},
+			}
 		}),
 	)
 
@@ -1942,9 +1944,11 @@ func TestLoadBalanceSourceRanges(t *testing.T) {
 				Port:     int32(svcPort),
 				Protocol: v1.ProtocolTCP,
 			}}
-			svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{
-				IP: svcLBIP,
-			}}
+			svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{{
+					IP: svcLBIP,
+				}},
+			}
 			svc.Spec.LoadBalancerSourceRanges = []string{
 				svcLBSource,
 			}
@@ -2047,9 +2051,11 @@ func TestAcceptIPVSTraffic(t *testing.T) {
 					NodePort: 80,
 				}}
 				if svcInfo.svcType == v1.ServiceTypeLoadBalancer {
-					svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{
-						IP: ingressIP,
-					}}
+					svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+						Ingress: []v1.LoadBalancerIngress{{
+							IP: ingressIP,
+						}},
+					}
 				}
 				if svcInfo.svcType == v1.ServiceTypeClusterIP {
 					svc.Spec.ExternalIPs = externalIP
@@ -2106,9 +2112,11 @@ func TestOnlyLocalLoadBalancing(t *testing.T) {
 				Protocol: v1.ProtocolTCP,
 				NodePort: int32(svcNodePort),
 			}}
-			svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{
-				IP: svcLBIP,
-			}}
+			svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{{
+					IP: svcLBIP,
+				}},
+			}
 			svc.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
 		}),
 	)

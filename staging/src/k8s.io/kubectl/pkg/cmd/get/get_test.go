@@ -1470,9 +1470,7 @@ func TestGetMultipleTypeObjectsAsList(t *testing.T) {
                 "sessionAffinity": "None",
                 "type": "ClusterIP"
             },
-            "status": {
-                "loadBalancer": {}
-            }
+            "status": {}
         }
     ],
     "kind": "List",

@@ -539,8 +539,10 @@ func (proxier *Proxier) mergeService(service *v1.Service) sets.String {
 		info.portal.ip = serviceIP
 		info.portal.port = int(servicePort.Port)
 		info.externalIPs = service.Spec.ExternalIPs
-		// Deep-copy in case the service instance changes
-		info.loadBalancerStatus = *service.Status.LoadBalancer.DeepCopy()
+		if service.Status.LoadBalancer != nil {
+			// Deep-copy in case the service instance changes
+			info.loadBalancerStatus = *service.Status.LoadBalancer.DeepCopy()
+		}
 		info.nodePort = int(servicePort.NodePort)
 		info.sessionAffinityType = service.Spec.SessionAffinity
 		// Kube-apiserver side guarantees SessionAffinityConfig won't be nil when session affinity type is ClientIP

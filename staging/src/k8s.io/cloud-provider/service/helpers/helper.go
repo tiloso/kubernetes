@@ -124,7 +124,20 @@ func HasLBFinalizer(service *v1.Service) bool {
 
 // LoadBalancerStatusEqual checks if load balancer status are equal
 func LoadBalancerStatusEqual(l, r *v1.LoadBalancerStatus) bool {
-	return ingressSliceEqual(l.Ingress, r.Ingress)
+	switch {
+	case l == nil && r == nil:
+		return true
+	case l == nil && r != nil && len(r.Ingress) == 0:
+		return true
+	case l == nil && r != nil:
+		return false
+	case l != nil && r == nil && len(l.Ingress) == 0:
+		return true
+	case l != nil && r == nil:
+		return false
+	default:
+		return ingressSliceEqual(l.Ingress, r.Ingress)
+	}
 }
 
 // PatchService patches the given service's Status or ObjectMeta based on the original and

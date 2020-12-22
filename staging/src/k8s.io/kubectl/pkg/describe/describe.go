@@ -2739,7 +2739,7 @@ func describeService(service *corev1.Service, endpoints *corev1.Endpoints, event
 		if service.Spec.ExternalName != "" {
 			w.Write(LEVEL_0, "External Name:\t%s\n", service.Spec.ExternalName)
 		}
-		if len(service.Status.LoadBalancer.Ingress) > 0 {
+		if service.Status.LoadBalancer != nil && len(service.Status.LoadBalancer.Ingress) > 0 {
 			list := buildIngressString(service.Status.LoadBalancer.Ingress)
 			w.Write(LEVEL_0, "LoadBalancer Ingress:\t%s\n", list)
 		}

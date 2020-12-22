@@ -42,7 +42,7 @@ func TestHandleGetAction(t *testing.T) {
 			name:               "get default services",
 			action:             core.NewGetAction(schema.GroupVersionResource{Version: "v1", Resource: "services"}, "default", "kubernetes"),
 			expectedHandled:    true,
-			expectedObjectJSON: []byte(`{"metadata":{"name":"kubernetes","namespace":"default","creationTimestamp":null,"labels":{"component":"apiserver","provider":"kubernetes"}},"spec":{"ports":[{"name":"https","port":443,"targetPort":6443}],"clusterIP":"10.96.0.1"},"status":{"loadBalancer":{}}}`),
+			expectedObjectJSON: []byte(`{"metadata":{"name":"kubernetes","namespace":"default","creationTimestamp":null,"labels":{"component":"apiserver","provider":"kubernetes"}},"spec":{"ports":[{"name":"https","port":443,"targetPort":6443}],"clusterIP":"10.96.0.1"},"status":{}}`),
 			expectedErr:        false,
 		},
 		{

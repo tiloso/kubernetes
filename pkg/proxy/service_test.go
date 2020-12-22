@@ -177,7 +177,11 @@ func TestServiceToServiceMap(t *testing.T) {
 				svc.Spec.LoadBalancerIP = "5.6.7.8"
 				svc.Spec.Ports = addTestPort(svc.Spec.Ports, "port3", "UDP", 8675, 30061, 7000)
 				svc.Spec.Ports = addTestPort(svc.Spec.Ports, "port4", "UDP", 8676, 30062, 7001)
-				svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{IP: "10.1.2.4"}}
+				svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+					Ingress: []v1.LoadBalancerIngress{
+						{IP: "10.1.2.4"},
+					},
+				}
 			}),
 			expected: map[ServicePortName]*BaseServiceInfo{
 				makeServicePortName("ns1", "load-balancer", "port3", v1.ProtocolUDP): makeTestServiceInfo("172.16.55.11", 8675, "UDP", 0, func(info *BaseServiceInfo) {
@@ -198,7 +202,11 @@ func TestServiceToServiceMap(t *testing.T) {
 				svc.Spec.LoadBalancerIP = "5.6.7.8"
 				svc.Spec.Ports = addTestPort(svc.Spec.Ports, "portx", "UDP", 8677, 30063, 7002)
 				svc.Spec.Ports = addTestPort(svc.Spec.Ports, "porty", "UDP", 8678, 30064, 7003)
-				svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{IP: "10.1.2.3"}}
+				svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+					Ingress: []v1.LoadBalancerIngress{
+						{IP: "10.1.2.3"},
+					},
+				}
 				svc.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
 				svc.Spec.HealthCheckNodePort = 345
 			}),

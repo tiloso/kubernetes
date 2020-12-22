@@ -810,9 +810,11 @@ func TestLoadBalancer(t *testing.T) {
 				Protocol: v1.ProtocolTCP,
 				NodePort: int32(svcNodePort),
 			}}
-			svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{
-				IP: svcLBIP,
-			}}
+			svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{{
+					IP: svcLBIP,
+				}},
+			}
 			// Also ensure that invalid LoadBalancerSourceRanges will not result
 			// in a crash.
 			svc.Spec.ExternalIPs = []string{svcLBIP}
@@ -1093,9 +1095,11 @@ func TestLoadBalancerReject(t *testing.T) {
 				Protocol: v1.ProtocolTCP,
 				NodePort: int32(svcNodePort),
 			}}
-			svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{
-				IP: svcLBIP,
-			}}
+			svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{{
+					IP: svcLBIP,
+				}},
+			}
 			svc.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
 			svc.Spec.SessionAffinity = v1.ServiceAffinityClientIP
 			svc.Spec.SessionAffinityConfig = &v1.SessionAffinityConfig{
@@ -1143,9 +1147,11 @@ func TestOnlyLocalLoadBalancing(t *testing.T) {
 				Protocol: v1.ProtocolTCP,
 				NodePort: int32(svcNodePort),
 			}}
-			svc.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{{
-				IP: svcLBIP,
-			}}
+			svc.Status.LoadBalancer = &v1.LoadBalancerStatus{
+				Ingress: []v1.LoadBalancerIngress{{
+					IP: svcLBIP,
+				}},
+			}
 			svc.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeLocal
 			svc.Spec.SessionAffinity = v1.ServiceAffinityClientIP
 			svc.Spec.SessionAffinityConfig = &v1.SessionAffinityConfig{

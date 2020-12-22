@@ -621,7 +621,7 @@ func (az *Cloud) findServiceIPAddress(ctx context.Context, clusterName string, s
 		return service.Spec.LoadBalancerIP, nil
 	}
 
-	if len(service.Status.LoadBalancer.Ingress) > 0 && len(service.Status.LoadBalancer.Ingress[0].IP) > 0 {
+	if service.Status.LoadBalancer != nil && len(service.Status.LoadBalancer.Ingress) > 0 && len(service.Status.LoadBalancer.Ingress[0].IP) > 0 {
 		return service.Status.LoadBalancer.Ingress[0].IP, nil
 	}
 

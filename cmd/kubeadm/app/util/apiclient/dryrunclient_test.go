@@ -72,8 +72,7 @@ func TestLogDryRunAction(t *testing.T) {
 	  name: foo
 	spec:
 	  clusterIP: 1.1.1.1
-	status:
-	  loadBalancer: {}
+	status: {}
 `),
 		},
 		{
