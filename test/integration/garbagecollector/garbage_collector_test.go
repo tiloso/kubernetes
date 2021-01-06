@@ -366,17 +366,16 @@ func testCrossNamespaceReferences(t *testing.T, watchCache bool) {
 	}
 	invalidOwnerReferences = append(invalidOwnerReferences, metav1.OwnerReference{Name: "invalid", UID: parent.UID, APIVersion: "v1", Kind: "Pod", Controller: pointer.BoolPtr(false)})
 
-	invalidUIDs := []types.UID{}
 	for i := 0; i < workers; i++ {
-		invalidChildType1, err := clientSet.CoreV1().ConfigMaps(namespaceA).Create(context.TODO(), &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{GenerateName: "invalid-child-", OwnerReferences: invalidOwnerReferences}}, metav1.CreateOptions{})
+		_, err := clientSet.CoreV1().ConfigMaps(namespaceA).Create(context.TODO(), &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{GenerateName: "invalid-child-", OwnerReferences: invalidOwnerReferences}}, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		invalidChildType2, err := clientSet.CoreV1().Secrets(namespaceA).Create(context.TODO(), &v1.Secret{ObjectMeta: metav1.ObjectMeta{GenerateName: "invalid-child-a-", OwnerReferences: invalidOwnerReferences}}, metav1.CreateOptions{})
+		_, err = clientSet.CoreV1().Secrets(namespaceA).Create(context.TODO(), &v1.Secret{ObjectMeta: metav1.ObjectMeta{GenerateName: "invalid-child-a-", OwnerReferences: invalidOwnerReferences}}, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		invalidChildType3, err := clientSet.CoreV1().Secrets(namespaceA).Create(context.TODO(), &v1.Secret{
+		_, err = clientSet.CoreV1().Secrets(namespaceA).Create(context.TODO(), &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:          map[string]string{"single-bad-reference": "true"},
 				GenerateName:    "invalid-child-b-",
@@ -386,7 +385,6 @@ func testCrossNamespaceReferences(t *testing.T, watchCache bool) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		invalidUIDs = append(invalidUIDs, invalidChildType1.UID, invalidChildType2.UID, invalidChildType3.UID)
 	}
 
 	// start GC with existing objects in place to simulate controller-manager restart
@@ -582,7 +580,8 @@ func setupRCsPods(t *testing.T, gc *garbagecollector.GarbageCollector, clientSet
 	rc.ObjectMeta.Finalizers = initialFinalizers
 	rc, err := rcClient.Create(context.TODO(), rc, metav1.CreateOptions{})
 	if err != nil {
-		t.Fatalf("Failed to create replication controller: %v", err)
+		t.Errorf("Failed to create replication controller: %v", err)
+		return
 	}
 	rcUIDs <- rc.ObjectMeta.UID
 	// create pods.
@@ -592,12 +591,14 @@ func setupRCsPods(t *testing.T, gc *garbagecollector.GarbageCollector, clientSet
 		pod := newPod(podName, namespace, []metav1.OwnerReference{{UID: rc.ObjectMeta.UID, Name: rc.ObjectMeta.Name}})
 		createdPod, err := podClient.Create(context.TODO(), pod, metav1.CreateOptions{})
 		if err != nil {
-			t.Fatalf("Failed to create Pod: %v", err)
+			t.Errorf("Failed to create Pod: %v", err)
+			return
 		}
 		podUIDs = append(podUIDs, createdPod.ObjectMeta.UID)
 	}
 	orphan := false
 	switch {
+	//lint:file-ignore SA1019 Keep testing deprecated OrphanDependents option until it's being removed
 	case options.OrphanDependents == nil && options.PropagationPolicy == nil && len(initialFinalizers) == 0:
 		// if there are no deletion options, the default policy for replication controllers is orphan
 		orphan = true
@@ -624,12 +625,14 @@ func setupRCsPods(t *testing.T, gc *garbagecollector.GarbageCollector, clientSet
 			return true, nil
 		})
 		if err != nil {
-			t.Fatalf("failed to observe the expected pods in the GC graph for rc %s", rcName)
+			t.Errorf("failed to observe the expected pods in the GC graph for rc %s", rcName)
+			return
 		}
 	}
 	// delete the rc
 	if err := rcClient.Delete(context.TODO(), rc.ObjectMeta.Name, options); err != nil {
-		t.Fatalf("failed to delete replication controller: %v", err)
+		t.Errorf("failed to delete replication controller: %v", err)
+		return
 	}
 }
 
@@ -1017,12 +1020,7 @@ func TestBlockingOwnerRefDoesBlock(t *testing.T) {
 	// dependency graph before handling the foreground deletion of the rc.
 	ctx.startGC(5)
 	timeout := make(chan struct{})
-	go func() {
-		select {
-		case <-time.After(5 * time.Second):
-			close(timeout)
-		}
-	}()
+	time.AfterFunc(5*time.Second, func() { close(timeout) })
 	if !cache.WaitForCacheSync(timeout, gc.IsSynced) {
 		t.Fatalf("failed to wait for garbage collector to be synced")
 	}
