@@ -570,7 +570,7 @@ func TestCreateWithNonExistentOwner(t *testing.T) {
 	}
 }
 
-func setupRCsPods(t *testing.T, gc *garbagecollector.GarbageCollector, clientSet clientset.Interface, nameSuffix, namespace string, initialFinalizers []string, options metav1.DeleteOptions, wg *sync.WaitGroup, rcUIDs chan types.UID) {
+func setupRCsPods(gc *garbagecollector.GarbageCollector, clientSet clientset.Interface, nameSuffix, namespace string, initialFinalizers []string, options metav1.DeleteOptions, wg *sync.WaitGroup, rcUIDs chan types.UID, errs chan error) {
 	defer wg.Done()
 	rcClient := clientSet.CoreV1().ReplicationControllers(namespace)
 	podClient := clientSet.CoreV1().Pods(namespace)
@@ -580,7 +580,7 @@ func setupRCsPods(t *testing.T, gc *garbagecollector.GarbageCollector, clientSet
 	rc.ObjectMeta.Finalizers = initialFinalizers
 	rc, err := rcClient.Create(context.TODO(), rc, metav1.CreateOptions{})
 	if err != nil {
-		t.Errorf("Failed to create replication controller: %v", err)
+		errs <- fmt.Errorf("Failed to create replication controller: %v", err)
 		return
 	}
 	rcUIDs <- rc.ObjectMeta.UID
@@ -591,7 +591,7 @@ func setupRCsPods(t *testing.T, gc *garbagecollector.GarbageCollector, clientSet
 		pod := newPod(podName, namespace, []metav1.OwnerReference{{UID: rc.ObjectMeta.UID, Name: rc.ObjectMeta.Name}})
 		createdPod, err := podClient.Create(context.TODO(), pod, metav1.CreateOptions{})
 		if err != nil {
-			t.Errorf("Failed to create Pod: %v", err)
+			errs <- fmt.Errorf("Failed to create Pod: %v", err)
 			return
 		}
 		podUIDs = append(podUIDs, createdPod.ObjectMeta.UID)
@@ -625,14 +625,13 @@ func setupRCsPods(t *testing.T, gc *garbagecollector.GarbageCollector, clientSet
 			return true, nil
 		})
 		if err != nil {
-			t.Errorf("failed to observe the expected pods in the GC graph for rc %s", rcName)
+			errs <- fmt.Errorf("failed to observe the expected pods in the GC graph for rc %s", rcName)
 			return
 		}
 	}
 	// delete the rc
 	if err := rcClient.Delete(context.TODO(), rc.ObjectMeta.Name, options); err != nil {
-		t.Errorf("failed to delete replication controller: %v", err)
-		return
+		errs <- fmt.Errorf("failed to delete replication controller: %v", err)
 	}
 }
 
@@ -675,19 +674,31 @@ func TestStressingCascadingDeletion(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(collections * 5)
 	rcUIDs := make(chan types.UID, collections*5)
+	errs := make(chan error, collections*5)
 	for i := 0; i < collections; i++ {
 		// rc is created with empty finalizers, deleted with nil delete options, pods will remain.
-		go setupRCsPods(t, gc, clientSet, "collection1-"+strconv.Itoa(i), ns.Name, []string{}, metav1.DeleteOptions{}, &wg, rcUIDs)
+		go setupRCsPods(gc, clientSet, "collection1-"+strconv.Itoa(i), ns.Name, []string{}, metav1.DeleteOptions{}, &wg, rcUIDs, errs)
 		// rc is created with the orphan finalizer, deleted with nil options, pods will remain.
-		go setupRCsPods(t, gc, clientSet, "collection2-"+strconv.Itoa(i), ns.Name, []string{metav1.FinalizerOrphanDependents}, metav1.DeleteOptions{}, &wg, rcUIDs)
+		go setupRCsPods(gc, clientSet, "collection2-"+strconv.Itoa(i), ns.Name, []string{metav1.FinalizerOrphanDependents}, metav1.DeleteOptions{}, &wg, rcUIDs, errs)
 		// rc is created with the orphan finalizer, deleted with DeleteOptions.OrphanDependents=false, pods will be deleted.
-		go setupRCsPods(t, gc, clientSet, "collection3-"+strconv.Itoa(i), ns.Name, []string{metav1.FinalizerOrphanDependents}, getNonOrphanOptions(), &wg, rcUIDs)
+		go setupRCsPods(gc, clientSet, "collection3-"+strconv.Itoa(i), ns.Name, []string{metav1.FinalizerOrphanDependents}, getNonOrphanOptions(), &wg, rcUIDs, errs)
 		// rc is created with empty finalizers, deleted with DeleteOptions.OrphanDependents=true, pods will remain.
-		go setupRCsPods(t, gc, clientSet, "collection4-"+strconv.Itoa(i), ns.Name, []string{}, getOrphanOptions(), &wg, rcUIDs)
+		go setupRCsPods(gc, clientSet, "collection4-"+strconv.Itoa(i), ns.Name, []string{}, getOrphanOptions(), &wg, rcUIDs, errs)
 		// rc is created with empty finalizers, deleted with DeleteOptions.PropagationPolicy=Orphan, pods will remain.
-		go setupRCsPods(t, gc, clientSet, "collection5-"+strconv.Itoa(i), ns.Name, []string{}, getPropagateOrphanOptions(), &wg, rcUIDs)
+		go setupRCsPods(gc, clientSet, "collection5-"+strconv.Itoa(i), ns.Name, []string{}, getPropagateOrphanOptions(), &wg, rcUIDs, errs)
 	}
-	wg.Wait()
+
+	go func() {
+		wg.Wait()
+		close(errs)
+	}()
+
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	t.Logf("all pods are created, all replications controllers are created then deleted")
 	// wait for the RCs and Pods to reach the expected numbers.
 	if err := wait.Poll(1*time.Second, 300*time.Second, func() (bool, error) {
