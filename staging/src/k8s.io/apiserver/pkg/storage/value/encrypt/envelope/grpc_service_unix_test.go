@@ -119,13 +119,15 @@ func TestTimeouts(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			t.Parallel()
 			var (
-				service         Service
-				err             error
-				data            = []byte("test data")
-				kubeAPIServerWG sync.WaitGroup
-				kmsPluginWG     sync.WaitGroup
-				testCompletedWG sync.WaitGroup
-				socketName      = newEndpoint()
+				service           Service
+				err               error
+				data              = []byte("test data")
+				kubeAPIServerWG   sync.WaitGroup
+				kubeAPIServerErrc = make(chan error, 1)
+				kmsPluginWG       sync.WaitGroup
+				kmsPluginErrc     = make(chan error, 1)
+				testCompletedWG   sync.WaitGroup
+				socketName        = newEndpoint()
 			)
 
 			testCompletedWG.Add(1)
@@ -138,7 +140,8 @@ func TestTimeouts(t *testing.T) {
 
 				service, err = NewGRPCService(socketName.endpoint, tt.callTimeout)
 				if err != nil {
-					t.Fatalf("failed to create envelope service, error: %v", err)
+					kubeAPIServerErrc <- fmt.Errorf("failed to create envelope service, error: %v", err)
+					return
 				}
 				defer destroyService(service)
 				kubeAPIServerWG.Done()
@@ -153,10 +156,12 @@ func TestTimeouts(t *testing.T) {
 
 				f, err := mock.NewBase64Plugin(socketName.path)
 				if err != nil {
-					t.Fatalf("failed to construct test KMS provider server, error: %v", err)
+					kmsPluginErrc <- fmt.Errorf("failed to construct test KMS provider server, error: %v", err)
+					return
 				}
 				if err := f.Start(); err != nil {
-					t.Fatalf("Failed to start test KMS provider server, error: %v", err)
+					kmsPluginErrc <- fmt.Errorf("Failed to start test KMS provider server, error: %v", err)
+					return
 				}
 				defer f.CleanUp()
 				kmsPluginWG.Done()
@@ -164,7 +169,15 @@ func TestTimeouts(t *testing.T) {
 				testCompletedWG.Wait()
 			}()
 
-			kubeAPIServerWG.Wait()
+			go func() {
+				kubeAPIServerWG.Wait()
+				close(kubeAPIServerErrc)
+			}()
+
+			if err, ok := <-kubeAPIServerErrc; ok {
+				t.Fatal(err)
+			}
+
 			_, err = service.Encrypt(data)
 
 			if err == nil && tt.wantErr != "" {
@@ -176,7 +189,14 @@ func TestTimeouts(t *testing.T) {
 			}
 
 			// Collecting kms-plugin - allowing plugin to clean-up.
-			kmsPluginWG.Wait()
+			go func() {
+				kmsPluginWG.Wait()
+				close(kmsPluginErrc)
+			}()
+
+			if err, ok := <-kmsPluginErrc; ok {
+				t.Fatal(err)
+			}
 		})
 	}
 }
@@ -191,6 +211,7 @@ func TestIntermittentConnectionLoss(t *testing.T) {
 		blackOut = 1 * time.Second
 		data     = []byte("test data")
 		endpoint = newEndpoint()
+		errc     = make(chan error, 1)
 	)
 	// Start KMS Plugin
 	f, err := mock.NewBase64Plugin(endpoint.path)
@@ -228,12 +249,18 @@ func TestIntermittentConnectionLoss(t *testing.T) {
 		wg1.Done()
 		_, err := service.Encrypt(data)
 		if err != nil {
-			t.Fatalf("failed when executing encrypt, error: %v", err)
+			errc <- fmt.Errorf("failed when executing encrypt, error: %v", err)
 		}
 	}()
 
 	wg1.Wait()
-	time.Sleep(blackOut)
+
+	select {
+	case err := <-errc:
+		t.Fatal(err)
+	case <-time.After(blackOut):
+	}
+
 	// Start KMS Plugin
 	f, err = mock.NewBase64Plugin(endpoint.path)
 	if err != nil {
@@ -246,6 +273,10 @@ func TestIntermittentConnectionLoss(t *testing.T) {
 	t.Log("Restarted KMS Plugin")
 
 	wg2.Wait()
+
+	if len(errc) != 0 {
+		t.Fatal(<-errc)
+	}
 }
 
 func TestUnsupportedVersion(t *testing.T) {
